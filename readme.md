@@ -13,6 +13,8 @@ install the python package from pip
 pip install pyfrotz
 ```
 
+you also need [dfrotz](https://gitlab.com/DavidGriffith/frotz.git) available, sometimes packaged as `frotz-dumb`
+
 # usage
 
 ```python

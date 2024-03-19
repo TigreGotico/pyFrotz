@@ -1,16 +1,19 @@
-import time
 import subprocess
-from os.path import exists, join, expanduser
+import time
+from distutils.spawn import find_executable
+from os.path import exists
 
 
-class Frotz(object):
+class Frotz:
     def __init__(self, game_data,
-                 interpreter=join(expanduser('~/.pyfrotz'), 'dfrotz'),
+                 interpreter=None,
                  save_file='save.qzl',
                  prompt_symbol=">",
                  reformat_spacing=True):
         self.data = game_data
-        self.interpreter = interpreter
+        self.interpreter = (interpreter or
+                            find_executable("dfrotz") or
+                            "/usr/bin/dfrotz")
         self.save_file = save_file
         self.prompt_symbol = prompt_symbol
         self.reformat_spacing = reformat_spacing
@@ -19,8 +22,8 @@ class Frotz(object):
     def _get_frotz(self):
 
         self.frotz = subprocess.Popen([self.interpreter, self.data],
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE)
         time.sleep(0.1)  # Allow to load
 
         # Load default savegame
