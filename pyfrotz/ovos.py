@@ -71,13 +71,9 @@ class FrotzSkill(UniversalSkill):
         # this may return empty string if the game ended
         data = self.game.do_command(utterance)
         if not data:
-            self.playing = False
-            return None
+            self.game_over()
         else:
-            room = data[0]
-            description = data[1]
-            self.speak_output(room)
-            self.speak_output(description)
+            self.speak_output(data)
 
     def speak_output(self, line):
         # replace type with say because its voice game
@@ -105,17 +101,13 @@ class FrotzSkill(UniversalSkill):
         self.playing = True
         if self.game is None:
             self.game = Frotz(self.game_data,
+                              intro_parser=self.intro_parser,
                               save_file=self.save_file)
 
         if load_save and os.path.isfile(self.save_file):
             self.game.restore(self.save_file)
             self.speak_dialog("game.restore")
         else:
-            # pyFrotz misses the intro of some games as it assumes credits come before it
-            # specific games may override this
-            if self.intro_parser:
-                intro = self.game.get_intro(self.intro_parser)
-            else:
-                intro = self.game.get_intro()
-            self.speak_output(intro)
+            self.game.parse_intro()
+            self.speak_output(self.game.intro)
         self.do_command("look")

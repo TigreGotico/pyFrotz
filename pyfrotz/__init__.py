@@ -1,7 +1,10 @@
 import subprocess
+import threading
 import time
 from distutils.spawn import find_executable
 from os.path import exists
+
+from pyfrotz.parsers import default_intro_parser, default_room_parser
 
 
 class Frotz:
@@ -9,14 +12,20 @@ class Frotz:
                  interpreter=None,
                  save_file='save.qzl',
                  prompt_symbol=">",
-                 reformat_spacing=True):
+                 intro_parser=None,
+                 room_parser=None):
         self.data = game_data
         self.interpreter = (interpreter or
                             find_executable("dfrotz") or
                             "/usr/bin/dfrotz")
         self.save_file = save_file
         self.prompt_symbol = prompt_symbol
-        self.reformat_spacing = reformat_spacing
+        self.intro = None
+        self.current_room = None
+        self.intro_parser = (intro_parser or
+                             default_intro_parser)
+        self.room_parser = (room_parser or
+                            default_room_parser)
         self._get_frotz()
 
     def _get_frotz(self):
@@ -70,9 +79,14 @@ class Frotz:
         # Clear all data with title etcetera
         prompt = prompt or self.prompt_symbol
         char = self.frotz.stdout.read(1).decode()
-        while char != prompt:
-            time.sleep(0.001)
-            char = self.frotz.stdout.read(1).decode()
+        if len(prompt) == 1:
+            while char != prompt:
+                time.sleep(0.001)
+                char = self.frotz.stdout.read(1).decode()
+        else:
+            while not char.endswith(prompt):
+                time.sleep(0.001)
+                char += self.frotz.stdout.read(1).decode()
 
     def do_command(self, action):
         """ Write a command to the interpreter. """
@@ -80,57 +94,46 @@ class Frotz:
         self.frotz.stdin.flush()
         return self._frotz_read()
 
-    def _frotz_read(self, parse_room=True):
+    def _frotz_read(self, prompt_symbol=None):
         """
-            Read from frotz interpreter process.
-            Returns tuple with Room name and description.
+        Read from frotz interpreter process.
+        Returns current scene description.
         """
-        # Read room info
-        output = ""
-        output += self.frotz.stdout.read(1).decode()
-        if not len(output):
-            return ""
-        while output[-1] != '>':
+        prompt_symbol = prompt_symbol or self.prompt_symbol
+        # Read info
+        output = self.frotz.stdout.read(1).decode()
+        while output[-1] not in [prompt_symbol, "?"]:
+            if self.game_ended():
+                return output + "\nGAME OVER"
             output += self.frotz.stdout.read(1).decode()
-        lines = [l for l in output[:-1].split("\n") if l.strip() and "Score: " not in l]
-        if parse_room:
-            room = lines[0]
-            lines = lines[1:]
-        # reformat text by . instead of \n
-        if self.reformat_spacing:
-            lines = " ".join(lines).replace(".", ".\n")
+
+        # remove prompt symbol
+        if output.endswith(prompt_symbol):
+            output = output[:-1]
+
+        # extract room info
+        if self.room_parser:
+            self.room, output = self.room_parser(output)
+
+        return output.strip()
+
+    def parse_intro(self):
+        if self.intro_parser:
+            # custom code to "startup" this game
+            self.intro = self.intro_parser(self)
         else:
-            lines = "\n".join(lines)
-        # Return description removing the prompt
-        if parse_room:
-            return room, lines
-        return lines
-
-    def get_intro(self, custom_parser=None):
-
-        if custom_parser is not None:
-            intro = custom_parser(self)
-        else:
-            output = ""
-            saw_serial = False
-            while not saw_serial:
-                output += self.frotz.stdout.read(1).decode()
-                while str(output)[-1] != '\n':
-                    output += self.frotz.stdout.read(1).decode()
-                if "serial number" in output.lower():
-                    saw_serial = True
-
-            intro = self._frotz_read(parse_room=False) + "\n"
-        # lets remove the first "look"
-        room, descript = self.do_command("look")
-        return intro.replace(descript, "").replace(room, "").strip()
+            # default to clearing everything until prompt
+            self._clear_until_prompt()
+            self.intro = self.do_command("look")
+        return self.intro
 
     def play_loop(self):
-        print(self.get_intro())
+        # just for testing in cli
+        self.parse_intro()
+        print(self.intro)
         try:
             while not self.game_ended():
-                room, descript = self.do_command(input(">>"))
-                print(room)
+                descript = self.do_command(input(">>"))
                 print(descript)
         except KeyboardInterrupt:
             pass
@@ -141,3 +144,67 @@ class Frotz:
             return False
         else:
             return True
+
+
+class EventFrotz(threading.Thread):
+    def __init__(self, game_data, on_game_intro=None,
+                 on_game_ended=None,
+                 on_game_output_ready=None,
+                 on_game_waiting_input=None,
+                 on_game_room_changed=None,
+                 daemon=True,
+                 *args, **kwargs):
+        super().__init__(daemon=daemon)
+        self.frotz = Frotz(game_data, *args, **kwargs)
+        self.cmd = None
+        self.cmd_ready = threading.Event()
+        self.last_description = None
+
+        self.on_game_ended = on_game_ended
+        self.on_game_intro = on_game_intro
+        self.on_game_room_changed = on_game_room_changed
+        self.on_game_output_ready = on_game_output_ready
+        self.on_game_waiting_input = on_game_waiting_input
+
+    def save(self, filename=None):
+        self.frotz.save(filename)
+
+    def restore(self, filename=None):
+        self.frotz.restore(filename)
+
+    def do_command(self, command):
+        # wait until previous command has been consumed
+        while self.cmd_ready.is_set():
+            time.sleep(0.1)
+        self.cmd = command
+        self.cmd_ready.set()
+
+    def run(self):
+        self.frotz.parse_intro()
+
+        if self.on_game_intro is not None:
+            self.on_game_intro(self.frotz.intro)
+
+        if self.on_game_waiting_input is not None:
+            self.on_game_waiting_input()
+
+        room = self.frotz.current_room
+        while not self.frotz.game_ended():
+            self.cmd.wait()
+            self.last_description = self.frotz.do_command(self.cmd)
+
+            if self.on_game_output_ready is not None:
+                self.on_game_output_ready(self.last_description)
+
+            if self.frotz.current_room != room:
+                room = self.frotz.current_room
+                if self.on_game_room_changed is not None:
+                    self.on_game_room_changed(room)
+
+            self.cmd.clear()
+
+            if self.on_game_waiting_input is not None:
+                self.on_game_waiting_input()
+
+        if self.on_game_ended is not None:
+            self.on_game_ended()
