@@ -14,8 +14,8 @@ class FrotzSkill(ConversationalGameSkill):
                  game_lang="en-us",
                  intro_parser=None,
                  *args, **kwargs):
-        img = os.path.join(os.path.dirname(__file__), "bg.png")
-        icon = os.path.join(os.path.dirname(__file__), "bg.png") # TODO
+        img = os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")
+        icon = os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")  # TODO
         super().__init__(skill_voc_filename="MoonGameKeyword",
                          skill_icon=icon, game_image=img,
                          *args, **kwargs)
@@ -59,6 +59,7 @@ class FrotzSkill(ConversationalGameSkill):
         auto-save may be implemented here"""
         self.game = None
         self.speak_dialog("game.ended")
+        self.gui.release()
 
     def on_game_command(self, utterance: str, lang: str):
         """pipe user input that wasnt caught by intents to the game
@@ -92,6 +93,7 @@ class FrotzSkill(ConversationalGameSkill):
         (if enabled in self.settings)
 
         on_game_stop will be called after this handler"""
+        self.gui.release()
 
     def speak_output(self, line):
         # replace type with say because its voice game
@@ -100,6 +102,6 @@ class FrotzSkill(ConversationalGameSkill):
         lines[-1] = (lines[-1][0], True)
 
         for line, listen in lines:
-            # TODO nice background picture
-            self.gui.show_text(line)
+            self.gui.show_image("bg.png", caption=line, title=self.game_id,
+                                override_idle=True)
             self.speak(line.strip(), wait=True, expect_response=listen)
