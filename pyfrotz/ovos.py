@@ -13,11 +13,14 @@ class FrotzSkill(ConversationalGameSkill):
                  game_data: str = None,
                  game_lang="en-us",
                  intro_parser=None,
+                 skill_icon=None,
+                 game_image=None,
                  *args, **kwargs):
-        img = os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")
-        icon = os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")  # TODO
+        # TODO use path from gui cache path to ensure docker compat
+        game_image = game_image or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")
+        skill_icon = skill_icon or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")  # TODO
         super().__init__(skill_voc_filename="MoonGameKeyword",
-                         skill_icon=icon, game_image=img,
+                         skill_icon=skill_icon, game_image=game_image,
                          *args, **kwargs)
         self.game_lang = standardize_lang_tag(game_lang).split("-")[0]
         self.game_id = game_id
@@ -102,6 +105,6 @@ class FrotzSkill(ConversationalGameSkill):
         lines[-1] = (lines[-1][0], True)
 
         for line, listen in lines:
-            self.gui.show_image("bg.png", caption=line, title=self.game_id,
+            self.gui.show_image(self.game_image, caption=line, title=self.game_id,
                                 override_idle=True)
             self.speak(line.strip(), wait=True, expect_response=listen)
