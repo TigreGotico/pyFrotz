@@ -89,7 +89,7 @@ class ZorkSkill(FrotzSkill):
         super().__init__(
             game_id="zork",
             game_data="/path/to/zork.z5",
-            game_lang="en-us",
+            game_lang="en",
             skill_icon="/path/to/zork/icon.png",
             game_image="/path/to/zork/bg.png",
             *args, **kwargs
@@ -97,9 +97,11 @@ class ZorkSkill(FrotzSkill):
 ```
 
 To package this into an OVOS skill:
+
 1. Set the game-specific parameters (`game_id`, `game_data`, `game_lang`, etc.).
 2. Customize dialogs and GUI assets (e.g., images and icons) as needed.
 3. Override methods like `on_play_game`, `on_game_command`, or `on_abandon_game` for additional functionality.
+4. Include a `{game_id}.voc` file in the `locale` directory, listing various ways the game can be referred to by voice. The file name must match the `game_id` with a `.voc` suffix (e.g., `zork.voc`).
 
 #### Key Methods
 
