@@ -4,7 +4,9 @@
 
  <img src='./pyfrotz/gui/all/pyfrotz.png' card_color='#00ff00' width='150' height='150' style='vertical-align:bottom'/> 
 
-Get some classic games to try it out [here](https://if.illuminion.de/infocom.html).
+Get some classic games to try [@The Obsessively Complete Infocom Catalog](https://eblong.com/infocom/). 
+
+Source code for a lot of infocom games can be found [@historicalsource](https://github.com/historicalsource)
 
 ---
 
