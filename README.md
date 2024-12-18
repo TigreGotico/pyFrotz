@@ -69,10 +69,10 @@ Several prebuilt OVOS skills based on PyFrotz are available:
 - [Stationfall Game](https://github.com/JarbasSkills/ovos-skill-station-fall-game)
 - [Starcross Game](https://github.com/JarbasSkills/ovos-skill-starcross-game)
 - [The Hitchhiker's Guide to the Galaxy](https://github.com/JarbasSkills/ovos-skill-hhgg-game)
-- [Zork I](https://github.com/JarbasSkills/ovos-skill-zork0-game)
 - [White House Adventure](https://github.com/OVOSHatchery/ovos-skill-white-house-adventure)
 - [Zork II](https://github.com/JarbasSkills/ovos-skill-zork2-game)
 - [Zork III](https://github.com/JarbasSkills/ovos-skill-zork3-game)
+- [Zork 0](https://github.com/JarbasSkills/ovos-skill-zork0-game)
 - [Colossal Cave Adventure](https://github.com/OVOSHatchery/ovos-skill-cave-adventure-game)
 
 ---
