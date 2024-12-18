@@ -9,7 +9,8 @@ from pyfrotz import Frotz
 
 
 class FrotzSkill(ConversationalGameSkill):
-    def __init__(self, game_id: str,
+    def __init__(self, skill_voc_filename: str,
+                 game_id: str,
                  game_data: str = None,
                  game_lang="en-us",
                  intro_parser=None,
@@ -19,7 +20,7 @@ class FrotzSkill(ConversationalGameSkill):
         # TODO use path from gui cache path to ensure docker compat
         game_image = game_image or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")
         skill_icon = skill_icon or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")  # TODO
-        super().__init__(skill_voc_filename="MoonGameKeyword",
+        super().__init__(skill_voc_filename=skill_voc_filename,
                          skill_icon=skill_icon, game_image=game_image,
                          *args, **kwargs)
         self.game_lang = standardize_lang_tag(game_lang).split("-")[0]
