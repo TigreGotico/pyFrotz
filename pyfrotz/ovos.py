@@ -1,79 +1,97 @@
 import os.path
 from os.path import expanduser
 
-from ovos_bus_client.message import Message
 from ovos_utils.xdg_utils import xdg_cache_home
-from ovos_workshop.skills.auto_translatable import UniversalSkill
+from ovos_workshop.skills.game_skill import ConversationalGameSkill
 from quebra_frases import sentence_tokenize
-
+from ovos_utils.lang import standardize_lang_tag
 from pyfrotz import Frotz
 
 
-class FrotzSkill(UniversalSkill):
+class FrotzSkill(ConversationalGameSkill):
     def __init__(self, game_id: str,
-                 game_data:str = None,
+                 game_data: str = None,
                  game_lang="en-us",
                  intro_parser=None,
                  *args, **kwargs):
-        # game is english only, apply bidirectional translation
-        super().__init__(internal_language=game_lang, *args, **kwargs)
+        img = os.path.join(os.path.dirname(__file__), "bg.png")
+        icon = os.path.join(os.path.dirname(__file__), "bg.png") # TODO
+        super().__init__(skill_voc_filename="MoonGameKeyword",
+                         skill_icon=icon, game_image=img,
+                         *args, **kwargs)
+        self.game_lang = standardize_lang_tag(game_lang).split("-")[0]
         self.game_id = game_id
-        self.playing = False
         self.game = None
         self.save_file = expanduser(f"{xdg_cache_home()}/{self.game_id}.save")
         self.game_data = game_data or f'{self.root_dir}/res/{self.game_id}.z5'
         self.log.info(f"game data: {self.game_data} ## save file: {self.save_file}")
         self.intro_parser = intro_parser
 
-    def initialize(self):
-        # async commands due to converse timeout!
-        self.add_event(f"frotz.{self.game_id}.cmd", self._async_cmd)
+    def on_play_game(self):
+        """called by ocp_pipeline when 'play XXX' matches the game"""
+        if self.game is None:
+            self.game = Frotz(self.game_data,
+                              intro_parser=self.intro_parser,
+                              save_file=self.save_file)
+        if self.settings.get("auto_save", False) and os.path.isfile(self.save_file):
+            self.game.restore(self.save_file)
+            self.speak_dialog("game.restore")
+        else:
+            self.game.parse_intro()
+            self.speak_output(self.game.intro)
+        self.do_command("look")
 
-    # converse
-    def _async_cmd(self, message):
-        utt = message.data["utterance"]
-        self.do_command(utt)
-        # check for game end
-        if self.game.game_ended():
-            self.game_over()
+    def on_save_game(self):
+        """skills can override method to implement functioonality"""
+        self.game.save()
+        self.speak_dialog("game.saved")
 
-    def converse(self, message):
-        utterances = message.data["utterances"]
-        if self.playing:
-            # capture speech and pipe to the game
-            # NOTE this is too slow, converse times out and we get double
-            # intents, delay execution and return now!
-            self.bus.emit(Message(f"frotz.{self.game_id}.cmd",
-                                  {"utterance": utterances[0]}))
-            return True
-        return False
+    def on_load_game(self):
+        """skills can override method to implement functioonality"""
+        if os.path.isfile(self.save_file):
+            self.game.restore(self.save_file)
+            self.speak_dialog("game.restore")
+        else:
+            super().on_load_game()  # to speak default error dialog
 
-    def handle_deactivate(self, message: Message):
-        """
-        Called when this skill is no longer considered active by the intent
-        service;
-        """
-        if self.playing:
-            self.speak_dialog("game.timeout")
-            self.handle_save()
-            self.game_over()
-
-    # game wrappers
-    def game_over(self):
-        self.playing = False
+    def on_stop_game(self):
+        """called when game is stopped for any reason
+        auto-save may be implemented here"""
         self.game = None
         self.speak_dialog("game.ended")
 
-    def do_command(self, utterance):
+    def on_game_command(self, utterance: str, lang: str):
+        """pipe user input that wasnt caught by intents to the game
+        do any intent matching or normalization here
+        don't forget to self.speak the game output too!
+        """
         if self.game.game_ended():
             self.game_over()
             return
+        lang = standardize_lang_tag(lang).split("-")[0]
+        autotranslate = lang != self.game_lang
+        if autotranslate:
+            utterance = self.translator.translate(utterance,
+                                                  target=self.game_lang,
+                                                  source=lang)
         # this may return empty string if the game ended
-        data = self.game.do_command(utterance)
-        if not data:
+        answer = self.game.do_command(utterance)
+        if not answer:
             self.game_over()
         else:
-            self.speak_output(data)
+            if autotranslate:
+                answer = self.translator.translate(answer,
+                                                   target=lang,
+                                                   source=self.game_lang)
+            self.speak_output(answer)
+
+    def on_abandon_game(self):
+        """user abandoned game mid interaction
+
+        auto-save is done before this method is called
+        (if enabled in self.settings)
+
+        on_game_stop will be called after this handler"""
 
     def speak_output(self, line):
         # replace type with say because its voice game
@@ -85,29 +103,3 @@ class FrotzSkill(UniversalSkill):
             # TODO nice background picture
             self.gui.show_text(line)
             self.speak(line.strip(), wait=True, expect_response=listen)
-
-    def save_game(self):
-        self.game.save()
-        self.speak_dialog("game.saved")
-
-    def exit_game(self, save=True):
-        if save:
-            self.save_game()
-            self.speak_dialog("game.exit")
-        else:
-            self.speak_dialog("game.ended")
-
-    def start_game(self, load_save=True):
-        self.playing = True
-        if self.game is None:
-            self.game = Frotz(self.game_data,
-                              intro_parser=self.intro_parser,
-                              save_file=self.save_file)
-
-        if load_save and os.path.isfile(self.save_file):
-            self.game.restore(self.save_file)
-            self.speak_dialog("game.restore")
-        else:
-            self.game.parse_intro()
-            self.speak_output(self.game.intro)
-        self.do_command("look")

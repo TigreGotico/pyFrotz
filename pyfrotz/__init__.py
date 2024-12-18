@@ -22,10 +22,8 @@ class Frotz:
         self.prompt_symbol = prompt_symbol
         self.intro = None
         self.current_room = None
-        self.intro_parser = (intro_parser or
-                             default_intro_parser)
-        self.room_parser = (room_parser or
-                            default_room_parser)
+        self.intro_parser = (intro_parser or default_intro_parser)
+        self.room_parser = (room_parser or default_room_parser)
         self._get_frotz()
 
     def _get_frotz(self):
@@ -82,7 +80,10 @@ class Frotz:
         if len(prompt) == 1:
             while char != prompt:
                 time.sleep(0.001)
-                char = self.frotz.stdout.read(1).decode()
+                try:
+                    char = self.frotz.stdout.read(1).decode()
+                except: # non-unicode?
+                    pass
         else:
             while not char.endswith(prompt):
                 time.sleep(0.001)
@@ -133,7 +134,14 @@ class Frotz:
         print(self.intro)
         try:
             while not self.game_ended():
-                descript = self.do_command(input(">>"))
+                cmd = input(">>").strip()
+                descript = self.do_command(cmd).strip()
+                if not descript and cmd != "look":
+                    # some games dont give output sometimes (eg, Advent)
+                    try:
+                        descript = self.do_command("look").strip()
+                    except:
+                        pass
                 print(descript)
         except KeyboardInterrupt:
             pass
