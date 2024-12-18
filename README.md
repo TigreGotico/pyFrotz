@@ -57,9 +57,57 @@ game.play_loop()
 
 ---
 
-## Integration with OVOS Skills
+## OVOS Skills
 
-PyFrotz can be utilized as a voice-based interpreter for Infocom and other Z-Machine games. It enables seamless integration with OpenVoiceOS (OVOS) through a provided template class for wrapping games into skills.
+PyFrotz can be used as a voice interpreter for all Infocom and other Z-Machine games.
+
+An OpenVoiceOS template class is provided to wrap games into a skill.
+
+### Template OVOS Class: `FrotzSkill`
+
+The `FrotzSkill` class is a template for creating conversational game skills based on PyFrotz. It simplifies the integration of Z-Machine games with OpenVoiceOS by handling game state, input/output, and optional auto-save features.
+
+#### Features
+
+- **Game Initialization**: Automatically loads the game data and prepares the save file location.
+- **Intro Parser**: Parses and announces the game's introductory text when starting a new game.
+- **Command Handling**: Pipes user inputs to the game, processes the output, and optionally translates input/output for multilingual support.
+- **Save/Load Management**: Handles game saving and restoring with customizable dialogs.
+- **GUI Integration**: Updates the OVOS GUI with game-specific visuals during gameplay.
+- **Abandon Game Handling**: Manages mid-interaction abandonment with optional auto-save.
+
+#### Example Usage
+
+Below is an example of how to use the `FrotzSkill` template to wrap a game like *Zork* into an OVOS skill.
+
+```python
+from pyfrotz.ovos import FrotzSkill
+
+
+class ZorkSkill(FrotzSkill):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            game_id="zork",
+            game_data="/path/to/zork.z5",
+            game_lang="en-us",
+            skill_icon="/path/to/zork/icon.png",
+            game_image="/path/to/zork/bg.png",
+            *args, **kwargs
+        )
+```
+
+To package this into an OVOS skill:
+1. Set the game-specific parameters (`game_id`, `game_data`, `game_lang`, etc.).
+2. Customize dialogs and GUI assets (e.g., images and icons) as needed.
+3. Override methods like `on_play_game`, `on_game_command`, or `on_abandon_game` for additional functionality.
+
+#### Key Methods
+
+- **`on_play_game`**: Initializes the game and displays the introductory text.
+- **`on_save_game`**: Saves the current game state to a file.
+- **`on_load_game`**: Restores the game state from a save file.
+- **`on_stop_game`**: Handles cleanup when the game ends.
+- **`on_game_command(utterance, lang)`**: Processes user commands, with optional language translation.
 
 ### Existing Game Skills
 
