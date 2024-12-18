@@ -20,7 +20,7 @@ class FrotzSkill(ConversationalGameSkill):
                  *args, **kwargs):
         # TODO use path from gui cache path to ensure docker compat
         game_image = game_image or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")
-        skill_icon = skill_icon or os.path.join(os.path.dirname(__file__), "gui", "all", "bg.png")  # TODO
+        skill_icon = skill_icon or os.path.join(os.path.dirname(__file__), "gui", "all", "pyfrotz.png")
         super().__init__(skill_voc_filename=skill_voc_filename or game_id,
                          skill_icon=skill_icon, game_image=game_image,
                          *args, **kwargs)

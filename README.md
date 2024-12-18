@@ -1,5 +1,7 @@
 # PyFrotz
 
+ <img src='./pyfrotz/gui/all/pyfrotz.png' card_color='#00ff00' width='150' height='150' style='vertical-align:bottom'/> 
+
 minimal python wrapper around [Frotz](https://gitlab.com/DavidGriffith/frotz)
 
 get some classic games to try it out [here](https://if.illuminion.de/infocom.html)
